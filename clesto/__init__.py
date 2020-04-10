@@ -1,5 +1,5 @@
 from collections import Counter
-from itertools import chain, permutations, tee
+from itertools import chain, combinations, permutations, tee
 from math import floor, factorial
 from operator import attrgetter
 
@@ -806,9 +806,201 @@ class Surjection_element(DGModule_element):
         # initialize element
         super(Surjection_element, self).__init__(data=data, torsion=torsion)
 
+    def pcompose(self, other, k):
+        '''partial composition'''
+
+        class Piece:
+            def __init__(self, piece, is_in_surj1, index_in_surj):
+                self.piece = piece
+                self.is_in_surj1 = is_in_surj1
+                self.index_in_surj = index_in_surj
+
+            def __getitem__(self, index):
+                return self.piece[index]
+
+            def __len__(self):
+                return len(self.piece)
+
+            def __eq__(self, other):
+                if isinstance(other, Piece):
+                    result = self.piece == other.piece
+                    result &= self.is_in_surj1 == other.is_in_surj1
+                    result &= self.index_in_surj == other.index_in_surj
+                    return result
+                return False
+
+        def table_arrangement(surj, only_dict=False):
+            '''Returns the table arrangement of a surjection, as a tuple.
+               If only_dict=True, it returns a dictionary dict such that
+               dict[index] is the table arrangement of surj where
+               surj[index] lies.
+
+               '''
+            finals = set()
+            for k in range(1, max(surj)+1):
+                for index in reversed(range(len(surj))):
+                    if surj[index] == k:
+                        finals.add(index)
+                        break
+
+            if only_dict:
+                result = dict()
+                row = 0
+                for index, el in enumerate(surj):
+                    result[index] = row
+                    if index not in finals or index == len(surj)-1:
+                        row += 1
+                return result
+
+            result = tuple()
+            new_row = tuple()
+            for index, el in enumerate(surj):
+                new_row += (el,)
+                if index not in finals or index == len(surj)-1:
+                    result += (new_row,)
+                    new_row = tuple()
+
+            return result
+
+        def location(subsequence, sequence):
+            '''returns the largest indices left and right such that
+               subsequence = sequence[left:right]
+
+            '''
+            left = -1
+            right = -1
+            for i in range(len(sequence)):
+                if sequence[i:i+len(subsequence)+1] == subsequence:
+                    left = i
+                    right = i+len(subsequence)-1
+
+            if left == -1 and right == -1:
+                raise ValueError(f"{subsequence} is not a subsequence"
+                                 f"of {sequence}")
+
+            return left, right
+
+        def last_index(value, sequence):
+            '''returns the index of the last occurence of a value
+               in a sequence
+
+               '''
+            for index, element in reversed(list(enumerate(sequence))):
+                if value == element:
+                    return index
+            raise ValueError(f"{value} is not an element of {sequence}")
+
+        def degrees(surj, pieces):
+            '''returns a tuple with the degree of the pieces in surj'''
+
+            row = table_arrangement(surj, only_dict=True)
+            result = tuple()
+
+            remaining_surj = surj
+            for piece in reversed(pieces):
+                end = piece[-1]
+                end_index = last_index(end, remaining_surj)
+                start_index = end_index - len(piece) + 1
+                degree = row[end_index] - row[start_index]
+                result = (degree,) + result
+                remaining_surj = remaining_surj[0:start_index+1]
+
+            return result
+
+        result = Surjection_element(torsion=self.torsion)
+        result.arity = self.arity + other.arity - 1
+
+        for surj1, coeff1 in self.items():
+            for surj2, coeff2 in other.items():
+                # shift surj1 and surj2
+                surj1_shifted = tuple(map(lambda i: i+other.arity-1
+                                          if i > k else i, surj1))
+                surj2_shifted = tuple(el+k-1 for el in surj2)
+
+                # find the occurences of k in surj1
+                occurences = tuple(index for index, element in enumerate(surj1)
+                                   if element == k)
+
+                # cut surj1 at the positions contained in occurences
+                indices_to_cut_surj1 = (0,) + occurences + (len(surj1)-1,)
+
+                surj1_cut = tuple()
+                for i in range(len(indices_to_cut_surj1)-1):
+                    left = indices_to_cut_surj1[i]
+                    right = indices_to_cut_surj1[i+1]
+                    surj1_cut += (Piece(surj1_shifted[left:right+1],
+                                        is_in_surj1=True,
+                                        index_in_surj=(left, right)),)
+
+                # cut surj2 into len(occurences)-1 pieces in all possible ways
+                n = len(occurences)
+                cuts_for_surj2 = combinations(range(len(surj2)), n-1)
+                for indices_to_cut_surj2 in cuts_for_surj2:
+                    surj2_cut = tuple()
+                    inserted = surj1_shifted
+                    initial_surj = list(surj1_cut)
+                    final_surj = list(surj1_cut)
+
+                    indices_to_cut_surj2 = (0,) + indices_to_cut_surj2
+                    indices_to_cut_surj2 += (len(surj2)-1,)
+                    for i in reversed(range(len(indices_to_cut_surj2)-1)):
+                        left = indices_to_cut_surj2[i]
+                        right = indices_to_cut_surj2[i+1]
+                        to_insert = surj2_shifted[left:right+1]
+                        new_piece = (Piece(to_insert, is_in_surj1=False,
+                                           index_in_surj=(left, right)),)
+                        surj2_cut = new_piece + surj2_cut
+                        index = occurences[i]
+                        inserted = inserted[0:index] + to_insert + inserted[index+1:len(inserted)]
+                        piece_to_insert = Piece(to_insert, is_in_surj1=False,
+                                                index_in_surj=(left, right))
+                        final_surj.insert(i+1, piece_to_insert)
+
+                    initial_surj += surj2_cut
+
+                    # compute degrees of pieces of the cut of surj1
+                    all_degrees = degrees(surj1_shifted, surj1_cut)
+                    all_degrees += degrees(surj2_shifted, surj2_cut)
+
+                    # compute the sign of the permutation taking
+                    # initial_surj to final_surj
+                    sign_exp = 0
+                    for i in range(len(final_surj)):
+                        for j in range(i, len(final_surj)):
+                            index_i = initial_surj.index(final_surj[i])
+                            index_j = initial_surj.index(final_surj[j])
+                            if index_i > index_j:
+                                prod = all_degrees[index_i]
+                                prod *= all_degrees[index_j]
+                                sign_exp += prod % 2
+
+                    sign = (-1)**sign_exp
+                    new_coeff = coeff1 * coeff2 * sign
+                    result += Surjection_element({inserted: new_coeff})
+
+        return result
+
     def compose(self, *others):
         '''...'''
-        pass
+
+        # partial composition
+        if len(others) == 2 and isinstance(others[1], int):
+            # unpaking and checking input
+            other, k = others
+            if self.torsion != other.torsion:
+                raise TypeError('not the same torsion')
+
+            return self.pcompose(other, k)
+
+        # total composition
+        else:
+            if not len(others) == self.arity:
+                raise TypeError('the number of arguments must be equal to ' +
+                                'the arity of self')
+            answer = self
+            for idx, other in reversed(list(enumerate(others))):
+                answer = answer.pcompose(other, idx + 1)
+            return answer
 
     def _reduce_rep(self):
         '''...'''
