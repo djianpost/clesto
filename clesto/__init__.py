@@ -861,7 +861,7 @@ class Surjection_element(DGModule_element):
             remaining_surj = remaining_surj[0:start_index + 1]
         return result
 
-    def pcompose(u, v, k):
+    def _pcompose(u, v, k):
         '''partial composition of Surjection_elements at place k'''
 
         result = Surjection_element(torsion=u.torsion)
@@ -934,7 +934,7 @@ class Surjection_element(DGModule_element):
             other, k = others
             if self.torsion != other.torsion:
                 raise TypeError('not the same torsion')
-            return self.pcompose(other, k)
+            return self._pcompose(other, k)
 
         # total composition
         else:
@@ -943,7 +943,7 @@ class Surjection_element(DGModule_element):
                                 'the arity of self')
             answer = self
             for idx, other in reversed(list(enumerate(others))):
-                answer = answer.pcompose(other, idx + 1)
+                answer = answer._pcompose(other, idx + 1)
             return answer
 
     def _reduce_rep(self):
