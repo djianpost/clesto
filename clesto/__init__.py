@@ -413,7 +413,7 @@ class SymmetricModule_element(Module_element):
         '''...'''
         if not self:
             return None
-        
+
         arities = set(max(k) for k in self.keys())
         if len(arities) > 1:
             return arities
@@ -848,9 +848,9 @@ class Surjection_element(DGModule_element):
 
         if len(arities) > 1:
             return arities
-        
+
         return arities.pop()
-        
+
     def _final_indices(surj):
         '''Return the set of indices of elements in surj that are
            the last occurence of a value. surj must be a tuple or a list.
@@ -862,7 +862,7 @@ class Surjection_element(DGModule_element):
                     finals.add(index)
                     break
         return finals
-        
+
     def table_arrangement(surj, only_dict=False):
         '''Returns the table arrangement of a surjection, as a tuple.
         If only_dict=True, it returns a dictionary dict such that
@@ -921,23 +921,23 @@ class Surjection_element(DGModule_element):
 
         for surj, coeff in self.items():
             final_indices = Surjection_element._final_indices(surj)
-            sgn_dict = {val: 1 for val in range(max(surj))}
+            sgn_dict = {}
             sgn = -1
-            
+
             for index, val in enumerate(surj):
                 num_occurrences_of_val = sum(1 for el in surj if el == val)
-                
+
                 if num_occurrences_of_val >= 2:
                     to_add = surj[:index] + surj[index+1:]
-                    
+
                     if index in final_indices:
                         sgn = sgn_dict[val] * (-1)
                     else:
                         sgn *= (-1)
                         sgn_dict[val] = sgn
-            
+
                     result += Surjection_element({to_add: coeff * sgn})
-        
+
         return result
 
     def _pcompose(u, v, k):
@@ -1133,7 +1133,7 @@ class EilenbergZilber_element(Module_element):
         super(EilenbergZilber_element, self).__init__(data=data,
                                                       torsion=torsion)
 
-    @ property    
+    @ property
     def arity(self):
         arities = set(len(multiop) for multiop in self.keys())
         if len(arities) != 1:
