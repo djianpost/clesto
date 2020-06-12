@@ -851,11 +851,9 @@ class Surjection_element(DGModule_element):
         
         return arities.pop()
         
-    def table_arrangement(surj, only_dict=False):
-        '''Returns the table arrangement of a surjection, as a tuple.
-        If only_dict=True, it returns a dictionary dict such that
-        dict[index] is the table arrangement of surj where
-        surj[index] lies.
+    def _final_indices(surj):
+        '''Return the set of indices of elements in surj that are
+           the last occurence of a value. surj must be a tuple or a list.
         '''
         finals = set()
         for k in range(1, max(surj) + 1):
@@ -863,6 +861,15 @@ class Surjection_element(DGModule_element):
                 if surj[index] == k:
                     finals.add(index)
                     break
+        return finals
+        
+    def table_arrangement(surj, only_dict=False):
+        '''Returns the table arrangement of a surjection, as a tuple.
+        If only_dict=True, it returns a dictionary dict such that
+        dict[index] is the table arrangement of surj where
+        surj[index] lies. surj must be a tuple or a list.
+        '''
+        finals = Surjection_element._final_indices(surj)
 
         if only_dict:
             result = dict()
@@ -891,7 +898,9 @@ class Surjection_element(DGModule_element):
         raise ValueError(f"{value} is not an element of {sequence}")
 
     def degrees(surj, pieces):
-        '''returns a tuple with the degree of the pieces in surj'''
+        '''returns a tuple with the degree of the pieces in surj.
+           surj must be a tuple or a list.
+        '''
 
         row = Surjection_element.table_arrangement(surj, only_dict=True)
         result = tuple()
@@ -903,6 +912,32 @@ class Surjection_element(DGModule_element):
             degree = row[end_index] - row[start_index]
             result = (degree,) + result
             remaining_surj = remaining_surj[0:start_index + 1]
+        return result
+
+    def boundary(self):
+        '''boundary of self'''
+
+        result = Surjection_element(torsion=self.torsion)
+
+        for surj, coeff in self.items():
+            final_indices = Surjection_element._final_indices(surj)
+            sgn_dict = {val: 1 for val in range(max(surj))}
+            sgn = -1
+            
+            for index, val in enumerate(surj):
+                num_occurrences_of_val = sum(1 for el in surj if el == val)
+                
+                if num_occurrences_of_val >= 2:
+                    to_add = surj[:index] + surj[index+1:]
+                    
+                    if index in final_indices:
+                        sgn = sgn_dict[val] * (-1)
+                    else:
+                        sgn *= (-1)
+                        sgn_dict[val] = sgn
+            
+                    result += Surjection_element({to_add: coeff * sgn})
+        
         return result
 
     def _pcompose(u, v, k):
