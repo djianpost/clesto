@@ -937,7 +937,8 @@ class Surjection_element(DGModule_element):
                         sgn *= (-1)
                         sgn_dict[val] = sgn
 
-                    result += Surjection_element({to_add: coeff * sgn}, torsion=self.torsion)
+                    result += Surjection_element({to_add: coeff * sgn},
+                                                 torsion=self.torsion)
 
         return result
 
@@ -1119,14 +1120,14 @@ class Surjection_element(DGModule_element):
                 count += 1
                 if count == n:
                     return index
-                    
+
     def tau_vertex(vertex, surj):
         '''...'''
         indices = [Surjection_element._index_occurence(val + 1, x + 1, surj)
                    for val, x in enumerate(vertex)]
         indices.sort()
         return tuple(surj[i] for i in indices)
-        
+
     def prism(surj):
         '''...'''
         r = max(surj)
@@ -1134,8 +1135,9 @@ class Surjection_element(DGModule_element):
 
         # compute the base prism {0, ..., d1 - 1} x ... x {0, ..., dr - 1}
         summands = [range(num_occurences[k]) for k in range(r)]
-        base_prism = product(*summands) 
-            # better to make summands a generator instead of using * ? 
+
+        base_prism = product(*summands)
+        # better to make summands a generator instead of using * ?
 
         base_prism = tuple(vertex for vertex in base_prism)
         return base_prism
@@ -1144,9 +1146,10 @@ class Surjection_element(DGModule_element):
         '''for prismatic decomposition'''
 
         base_prism = Surjection_element.prism(surj)
-        image_prism = tuple(Surjection_element.tau_vertex(vertex, surj) for vertex in base_prism)   
+        image_prism = tuple(Surjection_element.tau_vertex(vertex, surj)
+                            for vertex in base_prism)
         return base_prism, image_prism
-        
+
     def max_simplex(vect, r):
         '''maximal simplex determined by the sequence
            vect = (k0, ..., kd)
@@ -1165,26 +1168,25 @@ class Surjection_element(DGModule_element):
 
     def table_collapse(self):
         '''...'''
-      
+
         result = BarrattEccles_element(torsion=self.torsion)
         r = self.arity
-        
+
         for surj, coeff in self.items():
-            d = len(surj) - r
             finals = Surjection_element._final_indices(surj)
             fund_vect = tuple(el for i, el in enumerate(surj)
-                                     if i not in finals)
+                              if i not in finals)
             fund_simplex = Surjection_element.max_simplex(fund_vect, r)
             tau_fund_simplex = tuple(Surjection_element.tau_vertex(vx, surj)
-                                for vx in fund_simplex)
-            
+                                     for vx in fund_simplex)
+
             # make a list with all the possibilities for indices k_i,
             # including eventual repetitions
             possibilities = []
             for k in range(1, r + 1):
                 num_occurences = surj.count(k)
                 possibilities += [k] * (num_occurences - 1)
-                
+
             # iterate over all tuples (k_0, ..., k_d), where each k_i
             # has as many repetitions as it has in `possibilities`
             # Note: distinct_permutations need the more_itertools module.
@@ -1192,31 +1194,31 @@ class Surjection_element(DGModule_element):
             # but it will compute much more than needed.
             for vect in distinct_permutations(possibilities):
                 simplex = Surjection_element.max_simplex(vect, r)
-              
+
                 # compute the image of the simplex
                 tau_simplex = tuple(Surjection_element.tau_vertex(vx, surj)
-                                  for vx in simplex)
-                
+                                    for vx in simplex)
+
                 # compute the sign of the simplex
                 sgn = 1
-                
+
                 for index, vertex in enumerate(tau_simplex):
                     vertex_f = tau_fund_simplex[index]
-                    
+
                     # find the permutation that takes vertex to vertex_f
                     permutation = {}
                     for idx, el in enumerate(vertex):
                         permutation[idx] = vertex_f.index(el)
-                        
+
                     # compute the sign of the permutation
                     sgn_perm = 1
                     for i in range(len(vertex)):
                         for j in range(i + 1, len(vertex)):
                             diff = permutation[j] - permutation[i]
                             sgn_perm *= diff // abs(diff)
-                            
+
                     sgn *= sgn_perm
-                            
+
                 result += BarrattEccles_element({tau_simplex: coeff * sgn},
                                                 torsion=self.torsion)
         return result
